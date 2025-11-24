@@ -1,52 +1,55 @@
 from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
-import os
-from rembg import remove
+from fastapi.responses import FileResponse
 from PIL import Image
+import os
 import uuid
 
 app = FastAPI()
 
-UPLOAD_FOLDER = "uploads"
-OUTPUT_FOLDER = "output"
+UPLOAD = "uploads"
+OUTPUT = "output"
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+os.makedirs(UPLOAD, exist_ok=True)
+os.makedirs(OUTPUT, exist_ok=True)
+
+
+def remove_background(input_path, output_path, threshold=200):
+    img = Image.open(input_path).convert("RGBA")
+    datas = img.getdata()
+
+    newData = []
+    for item in datas:
+        # If background is light/white
+        if item[0] > threshold and item[1] > threshold and item[2] > threshold:
+            newData.append((255, 255, 255, 0))  
+        else:
+            newData.append(item)
+
+    img.putdata(newData)
+    img.save(output_path, "PNG")
+
 
 @app.post("/remove-bg")
-async def remove_background(file: UploadFile = File(...)):
-    try:
-        # Unique filename generate
-        input_filename = f"{uuid.uuid4()}_{file.filename}"
-        output_filename = input_filename.replace(".jpg", ".png").replace(".jpeg", ".png")
+async def remove_bg(file: UploadFile = File(...)):
+    file_id = str(uuid.uuid4())
+    input_path = f"{UPLOAD}/{file_id}_{file.filename}"
+    output_path = f"{OUTPUT}/{file_id}.png"
 
-        input_path = os.path.join(UPLOAD_FOLDER, input_filename)
-        output_path = os.path.join(OUTPUT_FOLDER, output_filename)
+    # Save uploaded file
+    with open(input_path, "wb") as f:
+        f.write(await file.read())
 
-        # Save input image
-        with open(input_path, "wb") as f:
-            f.write(await file.read())
+    # Remove background
+    remove_background(input_path, output_path)
 
-        # Background remove
-        input_image = Image.open(input_path)
-        output_image = remove(input_image)
-        output_image.save(output_path)
-
-        return {
-            "status": "success",
-            "download_url": f"/download/{output_filename}"
-        }
-
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-
-
-@app.get("/download/{filename}")
-def download_image(filename: str):
-    file_path = os.path.join(OUTPUT_FOLDER, filename)
-    return FileResponse(path=file_path, filename=filename)
+    # Return final clean image
+    return FileResponse(
+        output_path,
+        media_type="image/png",
+        filename="clean.png"
+    )
 
 
 @app.get("/")
 def home():
-    return {"message": "Background Remove API Active!"}
+    return {"message": "Python background remove API working!"}
