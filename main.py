@@ -1,39 +1,22 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import Response
-from PIL import Image
+from rembg import remove
 import io
 
 app = FastAPI()
-
-def remove_background_bytes(image_bytes):
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-
-    datas = img.getdata()
-    newData = []
-
-    # White/light background remove
-    for item in datas:
-        if item[0] > 200 and item[1] > 200 and item[2] > 200:
-            newData.append((255, 255, 255, 0))
-        else:
-            newData.append(item)
-
-    img.putdata(newData)
-
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-
-    return buffer.getvalue()
 
 
 @app.post("/remove-bg")
 async def remove_bg(file: UploadFile = File(...)):
     try:
-        image_bytes = await file.read()
-        clean = remove_background_bytes(image_bytes)
+        # Read uploaded file bytes
+        input_bytes = await file.read()
+
+        # Remove background using rembg AI
+        output_bytes = remove(input_bytes)
 
         return Response(
-            clean,
+            content=output_bytes,
             media_type="image/png",
             headers={"Content-Disposition": "inline; filename=clean.png"}
         )
@@ -44,4 +27,4 @@ async def remove_bg(file: UploadFile = File(...)):
 
 @app.get("/")
 def home():
-    return {"message": "Background remove API working!"}
+    return {"message": "AI Background Remove API Working!"}
