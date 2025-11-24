@@ -9,8 +9,12 @@ app = FastAPI()
 UPLOAD = "uploads"
 OUTPUT = "output"
 
-os.makedirs(UPLOAD, exist_ok=True)
-os.makedirs(OUTPUT, exist_ok=True)
+# SAFE: Check & Create Folders if Missing
+if not os.path.exists(UPLOAD):
+    os.makedirs(UPLOAD)
+
+if not os.path.exists(OUTPUT):
+    os.makedirs(OUTPUT)
 
 
 def remove_background(input_path, output_path, threshold=200):
@@ -19,7 +23,7 @@ def remove_background(input_path, output_path, threshold=200):
 
     newData = []
     for item in datas:
-        # If background is light/white
+        # Light/white background remove
         if item[0] > threshold and item[1] > threshold and item[2] > threshold:
             newData.append((255, 255, 255, 0))  
         else:
@@ -35,14 +39,14 @@ async def remove_bg(file: UploadFile = File(...)):
     input_path = f"{UPLOAD}/{file_id}_{file.filename}"
     output_path = f"{OUTPUT}/{file_id}.png"
 
-    # Save uploaded file
+    # Save the uploaded file
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
     # Remove background
     remove_background(input_path, output_path)
 
-    # Return final clean image
+    # Return clean image
     return FileResponse(
         output_path,
         media_type="image/png",
