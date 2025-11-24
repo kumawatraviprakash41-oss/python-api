@@ -6,7 +6,7 @@ app = FastAPI()
 
 @app.get("/")
 def home():
-    return {"message": "FastAPI Running on Railway!"}
+    return {"message": "my name Swheta!"}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
