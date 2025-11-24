@@ -6,15 +6,12 @@ import uuid
 
 app = FastAPI()
 
-UPLOAD = "__pycache__"
-OUTPUT = "__pycache__"
+UPLOAD = "uploads"
+OUTPUT = "output"
 
-# SAFE: Check & Create Folders if Missing
-if not os.path.exists(UPLOAD):
-    os.makedirs(UPLOAD)
-
-if not os.path.exists(OUTPUT):
-    os.makedirs(OUTPUT)
+# Create folders if not exist
+os.makedirs(UPLOAD, exist_ok=True)
+os.makedirs(OUTPUT, exist_ok=True)
 
 
 def remove_background(input_path, output_path, threshold=200):
@@ -23,9 +20,8 @@ def remove_background(input_path, output_path, threshold=200):
 
     newData = []
     for item in datas:
-        # Light/white background remove
         if item[0] > threshold and item[1] > threshold and item[2] > threshold:
-            newData.append((255, 255, 255, 0))  
+            newData.append((255, 255, 255, 0))  # transparent
         else:
             newData.append(item)
 
@@ -39,19 +35,14 @@ async def remove_bg(file: UploadFile = File(...)):
     input_path = f"{UPLOAD}/{file_id}_{file.filename}"
     output_path = f"{OUTPUT}/{file_id}.png"
 
-    # Save the uploaded file
+    # Save image
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
     # Remove background
     remove_background(input_path, output_path)
 
-    # Return clean image
-    return FileResponse(
-        output_path,
-        media_type="image/png",
-        filename="clean.png"
-    )
+    return FileResponse(output_path, media_type="image/png", filename="clean.png")
 
 
 @app.get("/")
