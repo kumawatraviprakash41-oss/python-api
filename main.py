@@ -1,20 +1,13 @@
 from fastapi import FastAPI
+import uvicorn
+import os
 
 app = FastAPI()
 
 @app.get("/")
 def home():
-    return {"message": "Python API Online Working!"}
+    return {"message": "FastAPI Online!"}
 
-@app.get("/hello")
-def hello():
-    return {"status": "success", "message": "Hello from Python API!"}
-
-@app.get("/user")
-def user():
-    return {
-        "name": "Ravi Kumar",
-        "age": 25,
-        "status": "active"
-    }
-}
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
