@@ -5,41 +5,43 @@ import io
 
 app = FastAPI()
 
-def remove_background_bytes(image_bytes, threshold=200):
+def remove_background_bytes(image_bytes):
     img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-    datas = img.getdata()
 
+    datas = img.getdata()
     newData = []
+
+    # White/light background remove
     for item in datas:
-        if item[0] > threshold and item[1] > threshold and item[2] > threshold:
-            newData.append((255, 255, 255, 0))  # transparent
+        if item[0] > 200 and item[1] > 200 and item[2] > 200:
+            newData.append((255, 255, 255, 0))
         else:
             newData.append(item)
 
     img.putdata(newData)
 
-    # return image as bytes
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format="PNG")
-    return img_byte_arr.getvalue()
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+
+    return buffer.getvalue()
 
 
 @app.post("/remove-bg")
 async def remove_bg(file: UploadFile = File(...)):
-    # Read uploaded image from memory
-    original_bytes = await file.read()
+    try:
+        image_bytes = await file.read()
+        clean = remove_background_bytes(image_bytes)
 
-    # Process background remove (in RAM)
-    clean_bytes = remove_background_bytes(original_bytes)
+        return Response(
+            clean,
+            media_type="image/png",
+            headers={"Content-Disposition": "inline; filename=clean.png"}
+        )
 
-    # Return processed image directly
-    return Response(
-        content=clean_bytes,
-        media_type="image/png",
-        headers={"Content-Disposition": "inline; filename=clean.png"}
-    )
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.get("/")
 def home():
-    return {"message": "Memory-based background remove API working!"}
+    return {"message": "Background remove API working!"}
