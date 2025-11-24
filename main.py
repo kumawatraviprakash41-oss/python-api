@@ -6,8 +6,8 @@ import uuid
 
 app = FastAPI()
 
-UPLOAD = "uploads"
-OUTPUT = "output"
+UPLOAD = "__pycache__"
+OUTPUT = "__pycache__"
 
 # SAFE: Check & Create Folders if Missing
 if not os.path.exists(UPLOAD):
