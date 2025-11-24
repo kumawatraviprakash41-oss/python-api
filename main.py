@@ -1,21 +1,12 @@
 from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from PIL import Image
-import os
-import uuid
+import io
 
 app = FastAPI()
 
-UPLOAD = "uploads"
-OUTPUT = "output"
-
-# Create folders if not exist
-os.makedirs(UPLOAD, exist_ok=True)
-os.makedirs(OUTPUT, exist_ok=True)
-
-
-def remove_background(input_path, output_path, threshold=200):
-    img = Image.open(input_path).convert("RGBA")
+def remove_background_bytes(image_bytes, threshold=200):
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
     datas = img.getdata()
 
     newData = []
@@ -26,25 +17,29 @@ def remove_background(input_path, output_path, threshold=200):
             newData.append(item)
 
     img.putdata(newData)
-    img.save(output_path, "PNG")
+
+    # return image as bytes
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format="PNG")
+    return img_byte_arr.getvalue()
 
 
 @app.post("/remove-bg")
 async def remove_bg(file: UploadFile = File(...)):
-    file_id = str(uuid.uuid4())
-    input_path = f"{UPLOAD}/{file_id}_{file.filename}"
-    output_path = f"{OUTPUT}/{file_id}.png"
+    # Read uploaded image from memory
+    original_bytes = await file.read()
 
-    # Save image
-    with open(input_path, "wb") as f:
-        f.write(await file.read())
+    # Process background remove (in RAM)
+    clean_bytes = remove_background_bytes(original_bytes)
 
-    # Remove background
-    remove_background(input_path, output_path)
-
-    return FileResponse(output_path, media_type="image/png", filename="clean.png")
+    # Return processed image directly
+    return Response(
+        content=clean_bytes,
+        media_type="image/png",
+        headers={"Content-Disposition": "inline; filename=clean.png"}
+    )
 
 
 @app.get("/")
 def home():
-    return {"message": "Python background remove API working!"}
+    return {"message": "Memory-based background remove API working!"}
